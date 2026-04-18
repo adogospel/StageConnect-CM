@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -6,25 +6,32 @@ import {
   ScrollView,
   Pressable,
   TextInput,
-  FlatList,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { Feather } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { theme } from "../../constants/theme";
-import JobCard, { Job } from "../../components/JobCard";
-
-// ✅ Backend
 import { getJobs } from "../../src/services/jobs";
 
-type ChipKey = "all" | "city" | "domain" | "paid";
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  city: string;
+  contractType: string;
+  isPaid: boolean;
+  domain: string;
+  premium: boolean;
+  createdAtLabel: string;
+};
 
-// --- helpers (petits, sans lib) ---
+type ChipKey = "all" | "paid" | "remote" | "tech";
+
 function daysAgoLabel(dateIso?: string) {
   if (!dateIso) return "";
   const d = new Date(dateIso);
@@ -33,7 +40,7 @@ function daysAgoLabel(dateIso?: string) {
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (days <= 0) return "Aujourd’hui";
   if (days === 1) return "Hier";
-  return `${days}j`;
+  return `Il y a ${days}j`;
 }
 
 function normalizeJobs(apiJobs: any[]): Job[] {
@@ -41,20 +48,15 @@ function normalizeJobs(apiJobs: any[]): Job[] {
     const companyName = j?.company?.companyName || "Entreprise";
     const city = j?.city || j?.company?.city || "—";
 
-    // ⚠️ IMPORTANT : JobCard attend "premium" (ton fake data),
-    // mais ton backend renvoie "isPremium".
-    // On mappe donc isPremium -> premium.
-    const premium = !!j?.isPremium;
-
     return {
-      id: j?._id, // JobCard utilise id
+      id: j?._id,
       title: j?.title || "Offre",
       company: companyName,
       city,
       contractType: j?.contractType || "—",
       isPaid: !!j?.isPaid,
       domain: j?.domain || "—",
-      premium,
+      premium: !!j?.isPremium,
       createdAtLabel: daysAgoLabel(j?.createdAt),
     };
   });
@@ -63,8 +65,6 @@ function normalizeJobs(apiJobs: any[]): Job[] {
 export default function Jobs() {
   const [q, setQ] = useState("");
   const [chip, setChip] = useState<ChipKey>("all");
-
-  // ✅ data backend
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -73,8 +73,6 @@ export default function Jobs() {
     try {
       setLoading(true);
       const data = await getJobs();
-
-      // Ton backend renvoie un ARRAY direct ✅
       const list = Array.isArray(data) ? data : data?.jobs ?? data?.data ?? [];
       setJobs(normalizeJobs(list));
     } catch (e: any) {
@@ -107,8 +105,6 @@ export default function Jobs() {
     }
   }, []);
 
-  const topJobs = useMemo(() => jobs.filter((j) => j.premium).slice(0, 6), [jobs]);
-
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
 
@@ -123,8 +119,9 @@ export default function Jobs() {
       const matchChip =
         chip === "all" ||
         (chip === "paid" && j.isPaid) ||
-        (chip === "city" && (j.city === "Yaoundé" || j.city === "Douala")) ||
-        (chip === "domain" &&
+        (chip === "remote" &&
+          ["remote", "hybride"].includes(j.contractType.toLowerCase())) ||
+        (chip === "tech" &&
           (j.domain.toLowerCase().includes("informat") ||
             j.domain.toLowerCase().includes("dev") ||
             j.domain.toLowerCase().includes("tech")));
@@ -134,226 +131,166 @@ export default function Jobs() {
   }, [jobs, q, chip]);
 
   const openJob = (id: string) => {
-    router.push(`/(student-tabs)/job/${id}` as any);
+    router.push(`/student/job/${id}` as any);
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
+    <SafeAreaView style={styles.safe}>
       <ScrollView
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Header */}
-        <View style={styles.headerWrap}>
-          <LinearGradient
-            colors={["rgba(59,130,246,0.14)", "rgba(99,102,241,0.08)", "rgba(255,255,255,0)"]}
-            style={styles.headerGlow}
-          />
+        <LinearGradient
+          colors={["#EAF2FF", "#F7FAFF", "#FFFFFF"]}
+          style={styles.hero}
+        >
+          <Text style={styles.heroTitle}>Trouve un emploi</Text>
+          <Text style={styles.heroSub}>
+            Offres premium, stages, CDD, CDI, freelance et plus.
+          </Text>
 
-          <View style={styles.headerRow}>
-            <View>
-              <Text style={styles.hi}>Offres</Text>
-              <Text style={styles.sub}>Découvre des opportunités adaptées à toi.</Text>
-            </View>
-
-            <Pressable style={styles.avatar}>
-              <Feather name="user" size={18} color={theme.colors.text} />
-            </Pressable>
-          </View>
-
-          {/* Search */}
           <View style={styles.searchWrap}>
             <Feather name="search" size={18} color={theme.colors.faint} />
             <TextInput
-              value={q}
-              onChangeText={setQ}
-              placeholder="Rechercher : React, Douala, UI/UX..."
+              placeholder="Rechercher un poste, une ville, un domaine..."
               placeholderTextColor={theme.colors.faint}
               style={styles.searchInput}
+              value={q}
+              onChangeText={setQ}
             />
-            {!!q && (
-              <Pressable onPress={() => setQ("")} hitSlop={10}>
-                <Feather name="x" size={18} color={theme.colors.faint} />
-              </Pressable>
-            )}
           </View>
+        </LinearGradient>
 
-          {/* Chips */}
-          <View style={styles.chipsRow}>
-            <Chip active={chip === "all"} label="Tout" onPress={() => setChip("all")} />
-            <Chip
-              active={chip === "paid"}
-              label="Payé"
-              icon="dollar-sign"
-              onPress={() => setChip("paid")}
-            />
-            <Chip
-              active={chip === "city"}
-              label="Grandes villes"
-              icon="map-pin"
-              onPress={() => setChip("city")}
-            />
-            <Chip active={chip === "domain"} label="Tech" icon="cpu" onPress={() => setChip("domain")} />
-          </View>
+        <View style={styles.chipsRow}>
+          {[
+            ["all", "Tous"],
+            ["paid", "Rémunérés"],
+            ["remote", "Remote"],
+            ["tech", "Tech"],
+          ].map(([key, label]) => {
+            const active = chip === key;
+            return (
+              <Pressable
+                key={key}
+                onPress={() => setChip(key as ChipKey)}
+                style={[styles.chip, active && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
-        {/* Loading / empty */}
         {loading ? (
-          <View style={styles.stateBox}>
-            <Text style={styles.stateTitle}>Chargement…</Text>
-            <Text style={styles.stateText}>On récupère les offres depuis l’API.</Text>
+          <View style={styles.loaderWrap}>
+            <ActivityIndicator size="large" />
           </View>
-        ) : jobs.length === 0 ? (
-          <View style={styles.stateBox}>
-            <Text style={styles.stateTitle}>Aucune offre</Text>
-            <Text style={styles.stateText}>Reviens plus tard ou actualise la page.</Text>
+        ) : filtered.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>Aucune offre trouvée</Text>
+            <Text style={styles.emptyText}>
+              Essaie une autre recherche ou recharge la page.
+            </Text>
           </View>
         ) : (
-          <>
-            {/* Section: Top offres */}
-            <View style={styles.sectionRow}>
-              <Text style={styles.sectionTitle}>Top offres</Text>
-              <Pressable onPress={() => setChip("all")}>
-                <Text style={styles.sectionLink}>Voir tout</Text>
-              </Pressable>
-            </View>
+          filtered.map((job) => (
+            <Pressable key={job.id} style={styles.card} onPress={() => openJob(job.id)}>
+              <View style={styles.cardTop}>
+                <View style={styles.badges}>
+                  {job.premium ? (
+                    <View style={[styles.pill, styles.pillPremium]}>
+                      <Text style={styles.pillPremiumText}>Premium</Text>
+                    </View>
+                  ) : null}
 
-            <FlatList
-              data={topJobs}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <JobCard job={item} variant="horizontal" onPress={() => openJob(item.id)} />
-              )}
-              contentContainerStyle={{ paddingLeft: theme.spacing.lg, paddingRight: theme.spacing.lg }}
-              style={{ marginHorizontal: -theme.spacing.lg }}
-              ListEmptyComponent={
-                <View style={{ paddingHorizontal: theme.spacing.lg }}>
-                  <Text style={styles.emptyTop}>Pas d’offres premium pour le moment.</Text>
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>{job.contractType}</Text>
+                  </View>
+
+                  {job.isPaid ? (
+                    <View style={[styles.pill, styles.pillPaid]}>
+                      <Text style={styles.pillPaidText}>Rémunéré</Text>
+                    </View>
+                  ) : null}
                 </View>
-              }
-            />
 
-            {/* Section: Toutes les offres */}
-            <View style={[styles.sectionRow, { marginTop: theme.spacing.xl }]}>
-              <Text style={styles.sectionTitle}>Toutes les offres</Text>
-              <Text style={styles.count}>{filtered.length}</Text>
-            </View>
+                <Text style={styles.time}>{job.createdAtLabel}</Text>
+              </View>
 
-            <View style={{ gap: 12 }}>
-              {filtered.map((job) => (
-                <JobCard key={job.id} job={job} onPress={() => openJob(job.id)} />
-              ))}
-            </View>
+              <Text style={styles.jobTitle}>{job.title}</Text>
+              <Text style={styles.company}>{job.company}</Text>
 
-            <View style={{ height: 26 }} />
-          </>
+              <View style={styles.footerRow}>
+                <View style={styles.domainRow}>
+                  <Feather name="map-pin" size={14} color={theme.colors.faint} />
+                  <Text style={styles.domain}>{job.city}</Text>
+                </View>
+
+                <View style={styles.domainRow}>
+                  <Feather name="briefcase" size={14} color={theme.colors.faint} />
+                  <Text style={styles.domain}>{job.domain}</Text>
+                </View>
+
+                <Feather name="chevron-right" size={18} color={theme.colors.faint} />
+              </View>
+            </Pressable>
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Chip({
-  active,
-  label,
-  icon,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  icon?: keyof typeof Feather.glyphMap;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={[styles.chip, active ? styles.chipActive : null]}>
-      {!!icon && (
-        <Feather name={icon} size={14} color={active ? "#fff" : theme.colors.faint} />
-      )}
-      <Text style={[styles.chipText, active ? styles.chipTextActive : null]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: {
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xxl,
-    paddingBottom: theme.spacing.xxl,
+  safe: { flex: 1, backgroundColor: theme.colors.bg },
+  container: { padding: 16, paddingBottom: 120 },
+  hero: {
+    borderRadius: 28,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
   },
-  headerWrap: {
-    position: "relative",
-    marginBottom: theme.spacing.xl,
-  },
-  headerGlow: {
-    position: "absolute",
-    top: -40,
-    left: -24,
-    right: -24,
-    height: 240,
-    borderRadius: theme.radius.xl,
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: theme.spacing.lg,
-  },
-  hi: {
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "900",
     color: theme.colors.text,
-    ...theme.text.h1,
   },
-  sub: {
-    color: theme.colors.muted,
-    marginTop: 6,
+  heroSub: {
+    marginTop: 8,
     fontSize: 14,
     fontWeight: "600",
+    color: theme.colors.muted,
     lineHeight: 20,
-    maxWidth: 300,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 16,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-    alignItems: "center",
-    justifyContent: "center",
-    ...theme.shadow.soft,
   },
   searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    marginTop: 16,
+    height: 52,
+    borderRadius: 18,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
-    borderRadius: theme.radius.xl,
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    ...theme.shadow.soft,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
+    fontSize: 15,
+    fontWeight: "600",
     color: theme.colors.text,
-    fontSize: 14.5,
-    fontWeight: "700",
-    paddingVertical: 0,
   },
   chipsRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
-    marginTop: theme.spacing.md,
+    marginBottom: 16,
+    flexWrap: "wrap",
   },
   chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: theme.colors.surface,
@@ -361,63 +298,122 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.stroke,
   },
   chipActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: "transparent",
+    backgroundColor: "#EAF2FF",
+    borderColor: theme.colors.primary,
   },
   chipText: {
-    color: theme.colors.faint,
-    fontSize: 12.5,
+    color: theme.colors.muted,
+    fontSize: 13,
     fontWeight: "800",
   },
   chipTextActive: {
-    color: "#fff",
+    color: theme.colors.primary,
   },
-  sectionRow: {
-    flexDirection: "row",
+  loaderWrap: {
+    paddingVertical: 40,
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-    marginTop: 6,
   },
-  sectionTitle: {
-    color: theme.colors.text,
-    ...theme.text.h2,
-  },
-  sectionLink: {
-    color: theme.colors.primary2,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  count: {
-    color: theme.colors.faint,
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  stateBox: {
-    marginTop: 4,
+  emptyCard: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    ...theme.shadow.soft,
+    borderRadius: 24,
+    padding: 20,
   },
-  stateTitle: {
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "900",
     color: theme.colors.text,
-    fontSize: 14.5,
+  },
+  emptyText: {
+    marginTop: 8,
+    color: theme.colors.muted,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  card: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    padding: 16,
+    marginBottom: 14,
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  badges: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+    flex: 1,
+    marginRight: 10,
+  },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: theme.colors.surface2,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+  },
+  pillPremium: {
+    backgroundColor: theme.colors.primary2,
+    borderColor: "transparent",
+  },
+  pillPremiumText: {
+    color: "#fff",
+    fontSize: 12,
     fontWeight: "900",
   },
-  stateText: {
-    color: theme.colors.muted,
-    marginTop: 6,
-    fontSize: 13.5,
-    fontWeight: "700",
-    lineHeight: 19,
+  pillPaid: {
+    backgroundColor: "rgba(16,185,129,0.10)",
+    borderColor: "rgba(16,185,129,0.22)",
   },
-  emptyTop: {
-    color: theme.colors.faint,
-    fontSize: 13,
+  pillText: {
+    color: theme.colors.muted,
+    fontSize: 12,
     fontWeight: "800",
-    paddingVertical: 10,
+  },
+  pillPaidText: {
+    color: theme.colors.success,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  time: {
+    color: theme.colors.faint,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  jobTitle: {
+    color: theme.colors.text,
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+  company: {
+    color: theme.colors.muted,
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 14,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  domainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+  },
+  domain: {
+    color: theme.colors.faint,
+    fontSize: 12.5,
+    fontWeight: "800",
   },
 });

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { theme } from "../../constants/theme";
@@ -58,17 +58,28 @@ export default function Notifications() {
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
   const markRead = useNotificationsStore((s) => s.markRead);
 
+  // 🔥 futur backend ready
+  useEffect(() => {
+    // Phase 2 → fetch notifications API ici
+    // fetchNotifications();
+  }, []);
+
   const openNotif = (id: string) => {
     markRead(id);
-    Alert.alert("Notification", "Action simulée ✅ (deep link plus tard).");
+
+    // 🔥 futur deep linking réel
+    Alert.alert("Notification", "Action à connecter (job / candidature)");
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        
+        {/* HEADER */}
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.title}>Notifications</Text>
+
             <Text style={styles.sub}>
               {unreadCount > 0
                 ? `${unreadCount} non lue${unreadCount > 1 ? "s" : ""}`
@@ -78,7 +89,7 @@ export default function Notifications() {
 
           <View style={styles.headerActions}>
             <Pressable
-              onPress={() => Alert.alert("Filtre", "Sprint futur 🙂")}
+              onPress={() => Alert.alert("Filtre", "À venir")}
               style={styles.iconBtn}
             >
               <Feather name="sliders" size={18} color={theme.colors.text} />
@@ -86,13 +97,16 @@ export default function Notifications() {
 
             <Pressable
               onPress={markAllRead}
-              style={[styles.markBtn, unreadCount === 0 ? styles.markBtnDisabled : null]}
+              style={[
+                styles.markBtn,
+                unreadCount === 0 && styles.markBtnDisabled,
+              ]}
               disabled={unreadCount === 0}
             >
               <Text
                 style={[
                   styles.markText,
-                  unreadCount === 0 ? { color: theme.colors.faint } : null,
+                  unreadCount === 0 && { color: theme.colors.faint },
                 ]}
               >
                 Tout lu
@@ -101,17 +115,22 @@ export default function Notifications() {
           </View>
         </View>
 
+        {/* LIST */}
         <View style={styles.inboxCard}>
           {items.length === 0 ? (
             <View style={{ paddingVertical: 18 }}>
               <Text style={{ color: theme.colors.muted, fontWeight: "700", textAlign: "center" }}>
-                Aucune notification.
+                Aucune notification pour le moment.
               </Text>
             </View>
           ) : (
             items.map((n, idx) => (
               <Pressable key={n.id} onPress={() => openNotif(n.id)} style={styles.row}>
-                <View style={[styles.iconWrap, n.read ? styles.iconRead : styles.iconUnread]}>
+                
+                <View style={[
+                  styles.iconWrap,
+                  n.read ? styles.iconRead : styles.iconUnread
+                ]}>
                   <Feather
                     name={iconByType(n.type)}
                     size={18}
@@ -122,11 +141,15 @@ export default function Notifications() {
                 <View style={styles.content}>
                   <View style={styles.topLine}>
                     <Text
-                      style={[styles.rowTitle, !n.read ? styles.rowTitleUnread : null]}
+                      style={[
+                        styles.rowTitle,
+                        !n.read && styles.rowTitleUnread
+                      ]}
                       numberOfLines={1}
                     >
                       {n.title}
                     </Text>
+
                     <Text style={styles.time}>{n.time}</Text>
                   </View>
 
@@ -138,6 +161,7 @@ export default function Notifications() {
                 </View>
 
                 <Feather name="chevron-right" size={18} color={theme.colors.faint} />
+
                 {idx !== items.length - 1 && <View style={styles.divider} />}
               </Pressable>
             ))
@@ -145,7 +169,7 @@ export default function Notifications() {
         </View>
 
         <Text style={styles.footer}>
-          Astuce : garde tes notifications actives pour ne rien rater (Sprint futur).
+          Active les notifications pour ne rien rater 🔔
         </Text>
 
         <View style={{ height: 26 }} />

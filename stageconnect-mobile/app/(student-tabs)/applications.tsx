@@ -125,7 +125,7 @@ export default function Applications() {
 
   const openJob = (jobId: string) => {
     if (!jobId) return;
-    router.push(`/(student-tabs)/job/${jobId}` as any);
+    router.push(`/student/job/${jobId}` as any);
   };
 
   return (

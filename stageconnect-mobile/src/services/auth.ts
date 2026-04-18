@@ -1,33 +1,52 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../lib/apiClient";
 
-export type Role = "student" | "company";
-
 export type AuthResponse = {
   _id: string;
   email: string;
-  role: Role;
-  token: string;
+  role: "student" | "company" | "admin"; // ✅ AJOUT ADMIN
+  token?: string;
+  accessToken?: string;
 };
 
 export async function login(email: string, password: string) {
-  const { data } = await api.post("/api/auth/login", { email, password });
+  const { data } = await api.post<AuthResponse>("/api/auth/login", {
+    email,
+    password,
+  });
 
   const token = data.token || data.accessToken;
   if (!token) throw new Error("Token manquant");
 
   await AsyncStorage.setItem("sc_token", token);
-
-  // ✅ on stocke aussi le rôle pour le routing au démarrage
-  if (data?.role) {
-    await AsyncStorage.setItem("sc_role", String(data.role));
-  }
+  await AsyncStorage.setItem(
+    "sc_user",
+    JSON.stringify({
+      _id: data._id,
+      email: data.email,
+      role: data.role,
+    })
+  );
 
   return data;
 }
 
 export async function register(payload: any) {
-  const { data } = await api.post("/api/auth/register", payload);
+  const { data } = await api.post<AuthResponse>("/api/auth/register", payload);
+
+  const token = data.token || data.accessToken;
+  if (!token) throw new Error("Token manquant");
+
+  await AsyncStorage.setItem("sc_token", token);
+  await AsyncStorage.setItem(
+    "sc_user",
+    JSON.stringify({
+      _id: data._id,
+      email: data.email,
+      role: data.role,
+    })
+  );
+
   return data;
 }
 
@@ -38,4 +57,13 @@ export async function logout() {
 export async function getCurrentUser() {
   const raw = await AsyncStorage.getItem("sc_user");
   return raw ? JSON.parse(raw) : null;
+}
+
+export async function getToken() {
+  return AsyncStorage.getItem("sc_token");
+}
+
+export async function getMe() {
+  const { data } = await api.get("/api/auth/me");
+  return data;
 }

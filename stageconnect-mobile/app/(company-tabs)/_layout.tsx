@@ -1,13 +1,68 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { theme } from "../../constants/theme";
-import { useNotificationsStore } from "../../src/store/notificationsStore";
+
+function OffersTabIcon({
+  color,
+  size,
+  focused,
+}: {
+  color: string;
+  size?: number;
+  focused: boolean;
+}) {
+  const s = size ?? 20;
+
+  return (
+    <View
+      style={{
+        width: 30,
+        height: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        position: "relative",
+      }}
+    >
+      <Feather name="briefcase" color={color} size={s} />
+      <View
+        style={{
+          position: "absolute",
+          top: -1,
+          right: -1,
+          width: 11,
+          height: 11,
+          borderRadius: 999,
+          backgroundColor: color,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Feather name="plus" color="#fff" size={8} />
+      </View>
+
+      <View
+        style={{
+          position: "absolute",
+          bottom: 1,
+          right: 2,
+          width: 0,
+          height: 0,
+          borderLeftWidth: 4,
+          borderRightWidth: 4,
+          borderBottomWidth: 0,
+          borderTopWidth: 6,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: focused ? color : `${color}CC`,
+        }}
+      />
+    </View>
+  );
+}
 
 export default function CompanyTabsLayout() {
-  const unread = useNotificationsStore((s) => s.unreadCount);
-
   return (
     <Tabs
       screenOptions={{
@@ -30,21 +85,21 @@ export default function CompanyTabsLayout() {
       }}
     >
       <Tabs.Screen
-        name="company-offers"
+        name="home"
         options={{
-          title: "Mes offres",
+          title: "Accueil",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="briefcase" color={color} size={size ?? 20} />
+            <Feather name="home" color={color} size={size ?? 20} />
           ),
         }}
       />
 
       <Tabs.Screen
-        name="company-applications"
+        name="publications"
         options={{
-          title: "Candidats",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="users" color={color} size={size ?? 20} />
+          title: "Mes offres",
+          tabBarIcon: ({ color, size, focused }) => (
+            <OffersTabIcon color={color} size={size} focused={focused} />
           ),
         }}
       />
@@ -53,13 +108,6 @@ export default function CompanyTabsLayout() {
         name="notifications"
         options={{
           title: "Notifs",
-          tabBarBadge: unread > 0 ? unread : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: theme.colors.primary2,
-            color: "#fff",
-            fontSize: 10,
-            fontWeight: "900",
-          },
           tabBarIcon: ({ color, size }) => (
             <Feather name="bell" color={color} size={size ?? 20} />
           ),

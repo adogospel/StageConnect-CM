@@ -5,33 +5,28 @@ const {
   applyToJob,
   getMyApplications,
   getApplicationsByJob,
+  getApplicationById,
   updateApplicationStatus,
 } = require("../controllers/applicationController");
 
 const { protect } = require("../middlewares/authMiddleware");
 const { restrictToRole } = require("../middlewares/roleMiddleware");
+const { uploadCV } = require("../middlewares/uploadMiddleware");
 
-// ===============================
-// STUDENT ROUTES
-// ===============================
-router.post("/", protect, restrictToRole("student"), applyToJob);
+// student
+router.post(
+  "/",
+  protect,
+  restrictToRole("student"),
+  uploadCV.single("cv"),
+  applyToJob
+);
+
 router.get("/me", protect, restrictToRole("student"), getMyApplications);
 
-// ===============================
-// COMPANY ROUTES
-// ===============================
-router.get(
-  "/job/:jobId",
-  protect,
-  restrictToRole("company"),
-  getApplicationsByJob
-);
-
-router.put(
-  "/:id/status",
-  protect,
-  restrictToRole("company"),
-  updateApplicationStatus
-);
+// company
+router.get("/job/:jobId", protect, restrictToRole("company"), getApplicationsByJob);
+router.get("/:id", protect, restrictToRole("company"), getApplicationById);
+router.put("/:id/status", protect, restrictToRole("company"), updateApplicationStatus);
 
 module.exports = router;

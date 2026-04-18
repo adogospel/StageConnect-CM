@@ -16,8 +16,6 @@ import { Feather } from "@expo/vector-icons";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import { theme } from "../../constants/theme";
-
-// ✅ VRAI LOGIN (backend)
 import { login } from "../../src/services/auth";
 
 export default function Login() {
@@ -34,23 +32,30 @@ export default function Login() {
   }, [email, password]);
 
   const canSubmit =
-    email.length > 0 && password.length > 0 && !errors.email && !errors.password;
+    email.length > 0 &&
+    password.length > 0 &&
+    !errors.email &&
+    !errors.password;
 
   const onLogin = async () => {
   if (!canSubmit) {
     return Alert.alert("Vérifie tes infos", "Email valide et mot de passe (6+).");
   }
+
   try {
     setLoading(true);
 
     const data = await login(email.trim(), password);
 
-    // ✅ redirect selon role
-    if (data?.role === "company") {
-      router.replace("/(company-tabs)/company-offers");
+    // ✅ GESTION DES 3 ROLES
+    if (data.role === "admin") {
+      router.replace("/(admin-tabs)/dashboard");
+    } else if (data.role === "company") {
+      router.replace("/(company-tabs)/home");
     } else {
       router.replace("/(student-tabs)/jobs");
     }
+
   } catch (e: any) {
     Alert.alert(
       "Connexion échouée",
@@ -66,19 +71,10 @@ export default function Login() {
       style={{ flex: 1, backgroundColor: theme.colors.bg }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header / Hero */}
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           <LinearGradient
-            colors={[
-              "rgba(59,130,246,0.18)",
-              "rgba(99,102,241,0.10)",
-              "rgba(255,255,255,0)",
-            ]}
+            colors={["rgba(59,130,246,0.18)", "rgba(99,102,241,0.10)", "rgba(255,255,255,0)"]}
             style={styles.heroGlow}
           />
 
@@ -94,17 +90,16 @@ export default function Login() {
 
             <View>
               <Text style={styles.brand}>StageConnect</Text>
-              <Text style={styles.brandSub}>Stages & opportunités au Cameroun</Text>
+              <Text style={styles.brandSub}>Offres d’emploi & stages</Text>
             </View>
           </View>
 
           <Text style={styles.title}>Connexion</Text>
           <Text style={styles.subtitle}>
-            Trouve un stage, postule rapidement, et suis tes candidatures.
+            Accède à ton espace et retrouve tes opportunités.
           </Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
           <Input
             label="Email"
@@ -136,16 +131,12 @@ export default function Login() {
             }
           />
 
-          <Pressable style={styles.forgot} onPress={() => Alert.alert("Bientôt", "Sprint futur 🙂")}>
-            <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
-          </Pressable>
-
           <Button
             title={loading ? "Connexion..." : "Se connecter"}
             onPress={onLogin}
             loading={loading}
             disabled={!canSubmit}
-            style={{ marginTop: 4 }}
+            style={{ marginTop: 6 }}
           />
 
           <View style={styles.dividerRow}>
@@ -160,27 +151,19 @@ export default function Login() {
             variant="ghost"
           />
         </View>
-
-        {/* Footer micro-copy */}
-        <Text style={styles.footer}>
-          En continuant, tu acceptes les conditions et la politique de confidentialité.
-        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  // ✅ Amélioration: tout descend + plus centré (meilleure respiration)
   container: {
-    flexGrow: 1,
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.xxl,
-    paddingBottom: theme.spacing.xxl,
-    justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
   hero: {
-    marginBottom: theme.spacing.lg,
+    marginBottom: 20,
     position: "relative",
   },
   heroGlow: {
@@ -189,13 +172,13 @@ const styles = StyleSheet.create({
     left: -24,
     right: -24,
     height: 220,
-    borderRadius: theme.radius.xl,
+    borderRadius: 28,
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: theme.spacing.lg,
+    marginBottom: 20,
   },
   logo: {
     width: 44,
@@ -204,7 +187,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
-    ...theme.shadow.soft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -219,7 +201,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 16,
     fontWeight: "900",
-    letterSpacing: -0.2,
   },
   brandSub: {
     color: theme.colors.muted,
@@ -229,7 +210,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: theme.colors.text,
-    ...theme.text.h1,
+    fontSize: 30,
+    fontWeight: "900",
     marginTop: 4,
   },
   subtitle: {
@@ -248,16 +230,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...theme.shadow.soft,
   },
-  forgot: {
-    alignSelf: "flex-end",
-    marginTop: -6,
-    marginBottom: theme.spacing.md,
-  },
-  forgotText: {
-    color: theme.colors.primary2,
-    fontSize: 13,
-    fontWeight: "800",
-  },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -273,14 +245,5 @@ const styles = StyleSheet.create({
     color: theme.colors.faint,
     fontSize: 12,
     fontWeight: "800",
-  },
-  footer: {
-    marginTop: theme.spacing.lg,
-    color: theme.colors.faint,
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 18,
-    textAlign: "center",
-    paddingHorizontal: 8,
   },
 });

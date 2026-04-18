@@ -12,17 +12,38 @@ const {
 
 const { protect } = require("../middlewares/authMiddleware");
 const { restrictToRole } = require("../middlewares/roleMiddleware");
+const {
+  requireVerifiedCompany,
+} = require("../middlewares/companyVerificationMiddleware");
 
-// ✅ Public
+// public
 router.get("/", getAllJobs);
-
-// ✅ Company routes (DOIVENT être avant "/:id")
 router.get("/company/me", protect, restrictToRole("company"), getMyJobs);
-router.post("/", protect, restrictToRole("company"), createJob);
-router.put("/:id", protect, restrictToRole("company"), updateJob);
-router.delete("/:id", protect, restrictToRole("company"), deleteJob);
-
-// ✅ Single job public (DOIT être en dernier)
 router.get("/:id", getJobById);
+
+// company only + verified
+router.post(
+  "/",
+  protect,
+  restrictToRole("company"),
+  requireVerifiedCompany,
+  createJob
+);
+
+router.put(
+  "/:id",
+  protect,
+  restrictToRole("company"),
+  requireVerifiedCompany,
+  updateJob
+);
+
+router.delete(
+  "/:id",
+  protect,
+  restrictToRole("company"),
+  requireVerifiedCompany,
+  deleteJob
+);
 
 module.exports = router;

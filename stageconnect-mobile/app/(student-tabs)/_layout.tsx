@@ -3,11 +3,8 @@ import { Tabs } from "expo-router";
 import { Feather } from "@expo/vector-icons";
 import { Platform } from "react-native";
 import { theme } from "../../constants/theme";
-import { useNotificationsStore } from "../../src/store/notificationsStore";
 
 export default function StudentTabsLayout() {
-  const unread = useNotificationsStore((s) => s.unreadCount);
-
   return (
     <Tabs
       screenOptions={{
@@ -53,13 +50,6 @@ export default function StudentTabsLayout() {
         name="notifications"
         options={{
           title: "Notifs",
-          tabBarBadge: unread > 0 ? unread : undefined,
-          tabBarBadgeStyle: {
-            backgroundColor: theme.colors.primary2,
-            color: "#fff",
-            fontSize: 10,
-            fontWeight: "900",
-          },
           tabBarIcon: ({ color, size }) => (
             <Feather name="bell" color={color} size={size ?? 20} />
           ),

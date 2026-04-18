@@ -1,6 +1,5 @@
 const StudentProfile = require("../models/StudentProfile");
 
-// 🔹 CREATE PROFILE
 exports.createStudentProfile = async (req, res) => {
   try {
     const existingProfile = await StudentProfile.findOne({
@@ -20,11 +19,11 @@ exports.createStudentProfile = async (req, res) => {
 
     res.status(201).json(profile);
   } catch (error) {
+    console.error("CREATE STUDENT PROFILE ERROR:", error);
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
-// 🔹 GET MY PROFILE
 exports.getMyStudentProfile = async (req, res) => {
   try {
     const profile = await StudentProfile.findOne({
@@ -37,25 +36,33 @@ exports.getMyStudentProfile = async (req, res) => {
 
     res.status(200).json(profile);
   } catch (error) {
+    console.error("GET STUDENT PROFILE ERROR:", error);
     res.status(500).json({ message: "Erreur serveur" });
   }
 };
 
-// 🔹 UPDATE PROFILE
 exports.updateStudentProfile = async (req, res) => {
   try {
-    const profile = await StudentProfile.findOneAndUpdate(
-      { user: req.user._id },
-      req.body,
-      { new: true }
-    );
+    const current = await StudentProfile.findOne({ user: req.user._id });
 
-    if (!profile) {
+    if (!current) {
       return res.status(404).json({ message: "Profil non trouvé" });
     }
 
-    res.status(200).json(profile);
+    const nextCandidateType = req.body.candidateType || current.candidateType;
+
+    const updated = await StudentProfile.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        ...req.body,
+        candidateType: nextCandidateType,
+      },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json(updated);
   } catch (error) {
+    console.error("UPDATE STUDENT PROFILE ERROR:", error);
     res.status(500).json({ message: "Erreur serveur" });
   }
 };

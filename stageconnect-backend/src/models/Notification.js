@@ -7,22 +7,39 @@ const notificationSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+
     title: {
       type: String,
       required: true,
+      trim: true,
     },
+
     message: {
       type: String,
       required: true,
+      trim: true,
     },
+
     type: {
       type: String,
-      enum: ["new_offer", "application_update"],
+      enum: [
+        "new_offer",
+        "application_update",
+        "company_verification_submitted",
+        "company_verification_approved",
+        "company_verification_rejected",
+      ],
       required: true,
     },
+
     isRead: {
       type: Boolean,
       default: false,
+    },
+
+    meta: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
   { timestamps: true }

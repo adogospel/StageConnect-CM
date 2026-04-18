@@ -5,41 +5,59 @@ export type CreateJobPayload = {
   description: string;
   city: string;
   domain: string;
-  contractType: "Stage académique" | "Stage pro" | "Job étudiant" | "Alternance";
+  contractType:
+    | "Stage"
+    | "CDD"
+    | "CDI"
+    | "Freelance"
+    | "Alternance"
+    | "Temps plein"
+    | "Temps partiel";
+  workMode?: "Présentiel" | "Hybride" | "Remote";
   duration?: string;
+  experienceLevel?: "Junior" | "Intermédiaire" | "Senior" | "Sans expérience";
   salary?: string;
   isPaid?: boolean;
-  deadline?: string; // ISO
+  deadline?: string;
+  skills?: string[];
   isPremium?: boolean;
 };
 
+// ✅ garde getJobs pour compatibilité avec tes écrans existants
 export async function getJobs(params?: any) {
   const { data } = await api.get("/api/jobs", { params });
-  return data; // array
+  return data;
+}
+
+// ✅ alias moderne si plus tard tu veux uniformiser
+export async function getAllJobs(params?: any) {
+  return getJobs(params);
 }
 
 export async function getJobById(id: string) {
   const { data } = await api.get(`/api/jobs/${id}`);
-  return data; // object
+  return data;
 }
 
-// ✅ COMPANY
 export async function getMyCompanyJobs() {
   const { data } = await api.get("/api/jobs/company/me");
-  return data; // array
+  return data;
 }
 
 export async function createJob(payload: CreateJobPayload) {
   const { data } = await api.post("/api/jobs", payload);
-  return data; // created job
+  return data;
 }
 
-export async function updateJob(id: string, payload: Partial<CreateJobPayload>) {
+export async function updateJob(
+  id: string,
+  payload: Partial<CreateJobPayload>
+) {
   const { data } = await api.put(`/api/jobs/${id}`, payload);
   return data;
 }
 
 export async function deleteJob(id: string) {
   const { data } = await api.delete(`/api/jobs/${id}`);
-  return data; // { message: "Offre désactivée" }
+  return data;
 }

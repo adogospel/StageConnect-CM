@@ -1,31 +1,55 @@
-import { useEffect } from "react";
-import { router, useRootNavigationState } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { Redirect } from "expo-router";
+import { getCurrentUser, getToken } from "../src/services/auth";
+
+type AppRoute =
+  | "/(auth)/login"
+  | "/(student-tabs)/jobs"
+  | "/(company-tabs)/publications"
+  | "/(admin-tabs)/dashboard";
 
 export default function Index() {
-  const navState = useRootNavigationState();
+  const [loading, setLoading] = useState(true);
+  const [redirectTo, setRedirectTo] = useState<AppRoute>("/(auth)/login");
 
   useEffect(() => {
-    if (!navState?.key) return; // ✅ attend que la nav soit prête
+    (async () => {
+      try {
+        const token = await getToken();
+        const user = await getCurrentUser();
 
-    const boot = async () => {
-      const token = await AsyncStorage.getItem("sc_token");
-      const role = await AsyncStorage.getItem("sc_role");
-
-      if (!token) {
-        router.replace("/(auth)/login");
-        return;
+        if (!token || !user?.role) {
+          setRedirectTo("/(auth)/login");
+        } else if (user.role === "admin") {
+          setRedirectTo("/(admin-tabs)/dashboard");
+        } else if (user.role === "company") {
+          setRedirectTo("/(company-tabs)/publications");
+        } else {
+          setRedirectTo("/(student-tabs)/jobs");
+        }
+      } catch (error) {
+        setRedirectTo("/(auth)/login");
+      } finally {
+        setLoading(false);
       }
+    })();
+  }, []);
 
-      if (role === "company") {
-        router.replace("/(company-tabs)/company-offers");
-      } else {
-        router.replace("/(student-tabs)/jobs");
-      }
-    };
+  if (loading) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#F6F8FC",
+        }}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
-    boot();
-  }, [navState?.key]);
-
-  return null;
+  return <Redirect href={redirectTo} />;
 }

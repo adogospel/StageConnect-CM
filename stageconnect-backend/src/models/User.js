@@ -9,19 +9,23 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+
     password: {
       type: String,
       required: true,
     },
+
     role: {
       type: String,
       enum: ["student", "company", "admin"],
       required: true,
     },
+
     isVerified: {
       type: Boolean,
       default: false,
     },
+
     isBlocked: {
       type: Boolean,
       default: false,

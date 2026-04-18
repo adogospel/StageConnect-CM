@@ -16,66 +16,44 @@ import { Feather } from "@expo/vector-icons";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import { theme } from "../../constants/theme";
-
-// ✅ Backend
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { register as registerApi } from "../../src/services/auth";
+import { register } from "../../src/services/auth";
 
 type Role = "student" | "company";
-
-function splitName(fullName: string) {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  const firstName = parts[0] || "";
-  const lastName = parts.slice(1).join(" ") || parts[0] || "";
-  return { firstName, lastName };
-}
+type CandidateType = "student" | "worker";
 
 export default function Register() {
   const [step, setStep] = useState<1 | 2>(1);
 
-  // Step 1
+  // step 1
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [secure, setSecure] = useState(true);
 
-  // Step 2
+  // step 2
   const [role, setRole] = useState<Role>("student");
+  const [candidateType, setCandidateType] = useState<CandidateType>("student");
   const [city, setCity] = useState("");
 
-  // ✅ Champs requis pour StudentProfile
+  // student fields
   const [university, setUniversity] = useState("");
   const [fieldOfStudy, setFieldOfStudy] = useState("");
   const [level, setLevel] = useState("");
 
+  // worker fields
+  const [activitySector, setActivitySector] = useState("");
+  const [yearsOfExperience, setYearsOfExperience] = useState("");
+  const [highestEducation, setHighestEducation] = useState("");
+
   const [loading, setLoading] = useState(false);
 
   const errors = useMemo(() => {
-    const e: {
-      fullName?: string;
-      email?: string;
-      password?: string;
-      city?: string;
-      university?: string;
-      fieldOfStudy?: string;
-      level?: string;
-    } = {};
-
+    const e: { fullName?: string; email?: string; password?: string } = {};
     if (fullName && fullName.trim().length < 2) e.fullName = "Nom trop court.";
     if (email && !/^\S+@\S+\.\S+$/.test(email)) e.email = "Email invalide.";
     if (password && password.length < 6) e.password = "Minimum 6 caractères.";
-
-    // On force city si student (car required dans StudentProfile)
-    if (role === "student" && city.trim().length === 0) e.city = "Ville requise.";
-
-    if (role === "student") {
-      if (!university.trim()) e.university = "Université requise.";
-      if (!fieldOfStudy.trim()) e.fieldOfStudy = "Filière requise.";
-      if (!level.trim()) e.level = "Niveau requis.";
-    }
-
     return e;
-  }, [fullName, email, password, role, city, university, fieldOfStudy, level]);
+  }, [fullName, email, password]);
 
   const canNext =
     fullName.trim().length > 0 &&
@@ -85,65 +63,72 @@ export default function Register() {
     !errors.email &&
     !errors.password;
 
-  const canSubmit =
-    role === "company"
-      ? true
-      : role === "student" &&
-        !errors.city &&
-        !errors.university &&
-        !errors.fieldOfStudy &&
-        !errors.level;
-
-  const goNext = () => {
-    if (!canNext) {
-      return Alert.alert("Vérifie tes infos", "Nom, email valide, mot de passe (6+).");
+  const validateStep2 = () => {
+    if (!city.trim()) {
+      Alert.alert("Champ requis", "La ville est requise.");
+      return false;
     }
-    setStep(2);
+
+    if (role === "student" && candidateType === "student") {
+      if (!university.trim() || !fieldOfStudy.trim() || !level.trim()) {
+        Alert.alert(
+          "Champs requis",
+          "Université, filière et niveau d’étude sont requis."
+        );
+        return false;
+      }
+    }
+
+    if (role === "student" && candidateType === "worker") {
+      if (!activitySector.trim() || !yearsOfExperience.trim() || !highestEducation.trim()) {
+        Alert.alert(
+          "Champs requis",
+          "Secteur, années d’expérience et dernier diplôme sont requis."
+        );
+        return false;
+      }
+    }
+
+    return true;
   };
 
-  const goBack = () => setStep(1);
-
   const onRegister = async () => {
-    if (!canSubmit) {
-      return Alert.alert("Infos manquantes", "Complète les champs requis.");
-    }
+    if (!validateStep2()) return;
 
     try {
       setLoading(true);
 
-      const { firstName, lastName } = splitName(fullName);
-
       const payload: any = {
-        email: email.trim().toLowerCase(),
+        email: email.trim(),
         password,
         role,
+        fullName: fullName.trim(),
+        city: city.trim(),
       };
 
-      // Backend exige StudentProfile complet pour student
       if (role === "student") {
-        payload.firstName = firstName;
-        payload.lastName = lastName;
-        payload.city = city.trim();
-        payload.university = university.trim();
-        payload.fieldOfStudy = fieldOfStudy.trim();
-        payload.level = level.trim();
-        payload.skills = []; // optionnel
+        payload.candidateType = candidateType;
+
+        if (candidateType === "student") {
+          payload.university = university.trim();
+          payload.fieldOfStudy = fieldOfStudy.trim();
+          payload.level = level.trim();
+        }
+
+        if (candidateType === "worker") {
+          payload.activitySector = activitySector.trim();
+          payload.yearsOfExperience = Number(yearsOfExperience);
+          payload.highestEducation = highestEducation.trim();
+        }
+      }
+
+      const data = await register(payload);
+
+      if (data.role === "company") {
+        router.replace("/(company-tabs)/home");
       } else {
-        // company (pour l’instant, backend crée seulement User)
-        // tu peux envoyer city si tu veux (ça n’explose pas)
-        payload.city = city.trim();
+        router.replace("/(student-tabs)/jobs");
       }
-
-      const data = await registerApi(payload);
-
-      // ✅ si backend renvoie token (c'est ton cas)
-      const token = data?.token || data?.accessToken;
-      if (token) {
-        await AsyncStorage.setItem("sc_token", token);
-      }
-
-      Alert.alert("Compte créé ✅", "Bienvenue sur StageConnect !");
-      router.replace("/(tabs)/jobs");
     } catch (e: any) {
       Alert.alert(
         "Inscription échouée",
@@ -160,7 +145,6 @@ export default function Register() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Header */}
         <View style={styles.hero}>
           <LinearGradient
             colors={["rgba(59,130,246,0.16)", "rgba(99,102,241,0.10)", "rgba(255,255,255,0)"]}
@@ -168,7 +152,11 @@ export default function Register() {
           />
 
           <View style={styles.topRow}>
-            <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backBtn}>
+            <Pressable
+              onPress={() => (step === 1 ? router.back() : setStep(1))}
+              hitSlop={10}
+              style={styles.backBtn}
+            >
               <Feather name="chevron-left" size={20} color={theme.colors.text} />
             </Pressable>
 
@@ -183,12 +171,11 @@ export default function Register() {
           <Text style={styles.title}>Créer un compte</Text>
           <Text style={styles.subtitle}>
             {step === 1
-              ? "Commence par les informations de base."
-              : "Choisis ton profil pour personnaliser l’expérience."}
+              ? "Commence par tes informations de compte."
+              : "Complète ton profil pour une expérience personnalisée."}
           </Text>
         </View>
 
-        {/* Card */}
         <View style={styles.card}>
           {step === 1 ? (
             <>
@@ -197,7 +184,7 @@ export default function Register() {
                 icon="user"
                 value={fullName}
                 onChangeText={setFullName}
-                placeholder="ex: Adonai N."
+                placeholder="Ex: Adonai N."
                 error={errors.fullName}
               />
 
@@ -231,129 +218,144 @@ export default function Register() {
                 }
               />
 
-              <Button title="Continuer" onPress={goNext} disabled={!canNext} />
-              <Pressable onPress={() => router.replace("/(auth)/login")} style={{ marginTop: 14 }}>
-                <Text style={styles.link}>
-                  Tu as déjà un compte ? <Text style={styles.linkStrong}>Se connecter</Text>
-                </Text>
-              </Pressable>
+              <Button
+                title="Continuer"
+                onPress={() => {
+                  if (!canNext) {
+                    return Alert.alert(
+                      "Vérifie tes infos",
+                      "Nom, email valide, mot de passe (6+)."
+                    );
+                  }
+                  setStep(2);
+                }}
+              />
             </>
           ) : (
             <>
-              <Text style={styles.sectionTitle}>Je suis :</Text>
+              <Text style={styles.sectionLabel}>Type de compte</Text>
 
-              <View style={styles.roleGrid}>
-                <RoleCard
-                  active={role === "student"}
-                  title="Étudiant"
-                  subtitle="Trouver un stage & postuler"
-                  icon="award"
+              <View style={styles.choiceRow}>
+                <Pressable
+                  style={[styles.choiceCard, role === "student" && styles.choiceCardActive]}
                   onPress={() => setRole("student")}
-                />
-                <RoleCard
-                  active={role === "company"}
-                  title="Entreprise"
-                  subtitle="Publier des offres & recruter"
-                  icon="briefcase"
+                >
+                  <Text style={styles.choiceTitle}>Candidat</Text>
+                  <Text style={styles.choiceSub}>Je cherche un emploi ou un stage</Text>
+                </Pressable>
+
+                <Pressable
+                  style={[styles.choiceCard, role === "company" && styles.choiceCardActive]}
                   onPress={() => setRole("company")}
-                />
+                >
+                  <Text style={styles.choiceTitle}>Entreprise</Text>
+                  <Text style={styles.choiceSub}>Je publie des offres</Text>
+                </Pressable>
               </View>
 
               <Input
-                label={role === "student" ? "Ville" : "Ville (optionnel)"}
+                label="Ville"
                 icon="map-pin"
                 value={city}
                 onChangeText={setCity}
-                placeholder="ex: Yaoundé"
-                error={role === "student" ? errors.city : undefined}
+                placeholder="Yaoundé"
               />
 
-              {/* ✅ Champs requis seulement si Student */}
-              {role === "student" && (
+              {role === "student" ? (
                 <>
-                  <Input
-                    label="Université"
-                    icon="book"
-                    value={university}
-                    onChangeText={setUniversity}
-                    placeholder="ex: IUT / Université de Yaoundé"
-                    error={errors.university}
-                  />
+                  <Text style={styles.sectionLabel}>Je suis</Text>
 
-                  <Input
-                    label="Filière"
-                    icon="layers"
-                    value={fieldOfStudy}
-                    onChangeText={setFieldOfStudy}
-                    placeholder="ex: Génie Logiciel"
-                    error={errors.fieldOfStudy}
-                  />
+                  <View style={styles.choiceRow}>
+                    <Pressable
+                      style={[
+                        styles.choiceCard,
+                        candidateType === "student" && styles.choiceCardActive,
+                      ]}
+                      onPress={() => setCandidateType("student")}
+                    >
+                      <Text style={styles.choiceTitle}>Étudiant</Text>
+                      <Text style={styles.choiceSub}>Université / école</Text>
+                    </Pressable>
 
-                  <Input
-                    label="Niveau"
-                    icon="bar-chart-2"
-                    value={level}
-                    onChangeText={setLevel}
-                    placeholder="ex: L2 / BTS / Licence / Master"
-                    error={errors.level}
-                  />
+                    <Pressable
+                      style={[
+                        styles.choiceCard,
+                        candidateType === "worker" && styles.choiceCardActive,
+                      ]}
+                      onPress={() => setCandidateType("worker")}
+                    >
+                      <Text style={styles.choiceTitle}>Travailleur</Text>
+                      <Text style={styles.choiceSub}>Déjà actif professionnellement</Text>
+                    </Pressable>
+                  </View>
+
+                  {candidateType === "student" ? (
+                    <>
+                      <Input
+                        label="Université / École"
+                        icon="book-open"
+                        value={university}
+                        onChangeText={setUniversity}
+                        placeholder="Ex: Université de Yaoundé I"
+                      />
+                      <Input
+                        label="Filière"
+                        icon="layers"
+                        value={fieldOfStudy}
+                        onChangeText={setFieldOfStudy}
+                        placeholder="Ex: Génie Logiciel"
+                      />
+                      <Input
+                        label="Niveau d’étude"
+                        icon="award"
+                        value={level}
+                        onChangeText={setLevel}
+                        placeholder="Ex: Licence 3"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Input
+                        label="Secteur d’activité"
+                        icon="briefcase"
+                        value={activitySector}
+                        onChangeText={setActivitySector}
+                        placeholder="Ex: Développement web"
+                      />
+                      <Input
+                        label="Années d’expérience"
+                        icon="clock"
+                        value={yearsOfExperience}
+                        onChangeText={setYearsOfExperience}
+                        keyboardType="numeric"
+                        placeholder="Ex: 2"
+                      />
+                      <Input
+                        label="Dernier diplôme"
+                        icon="award"
+                        value={highestEducation}
+                        onChangeText={setHighestEducation}
+                        placeholder="Ex: Licence"
+                      />
+                    </>
+                  )}
                 </>
-              )}
+              ) : null}
 
-              <View style={{ flexDirection: "row", gap: 12 }}>
-                <Button title="Retour" onPress={goBack} variant="ghost" style={{ flex: 1 }} />
-                <Button
-                  title={loading ? "Création..." : "Créer mon compte"}
-                  onPress={onRegister}
-                  loading={loading}
-                  disabled={!canSubmit}
-                  style={{ flex: 1 }}
-                />
-              </View>
-
-              <Text style={styles.micro}>
-                {role === "student"
-                  ? "Ces infos sont nécessaires pour postuler."
-                  : "Tu pourras compléter ton profil entreprise plus tard."}
-              </Text>
+              <Button
+                title={loading ? "Création..." : "Créer mon compte"}
+                onPress={onRegister}
+                loading={loading}
+              />
             </>
           )}
         </View>
 
         <Text style={styles.footer}>
-          En créant un compte, tu acceptes les conditions et la politique de confidentialité.
+          En continuant, tu acceptes les conditions et la politique de confidentialité.
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
-  );
-}
-
-function RoleCard({
-  active,
-  title,
-  subtitle,
-  icon,
-  onPress,
-}: {
-  active: boolean;
-  title: string;
-  subtitle: string;
-  icon: keyof typeof Feather.glyphMap;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={[styles.roleCard, active ? styles.roleActive : null]}>
-      <View style={[styles.roleIcon, active ? styles.roleIconActive : null]}>
-        <Feather name={icon} size={18} color={active ? "#fff" : theme.colors.text} />
-      </View>
-      <Text style={styles.roleTitle}>{title}</Text>
-      <Text style={styles.roleSub}>{subtitle}</Text>
-      {active && (
-        <View style={styles.check}>
-          <Feather name="check" size={14} color="#fff" />
-        </View>
-      )}
-    </Pressable>
   );
 }
 
@@ -384,7 +386,7 @@ const styles = StyleSheet.create({
   backBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
     borderColor: theme.colors.stroke,
@@ -395,13 +397,12 @@ const styles = StyleSheet.create({
   stepPills: {
     flexDirection: "row",
     gap: 8,
-    alignItems: "center",
   },
   pill: {
-    width: 28,
-    height: 6,
-    borderRadius: 99,
-    backgroundColor: "rgba(15,23,42,0.12)",
+    width: 10,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: theme.colors.stroke,
   },
   pillActive: {
     backgroundColor: theme.colors.primary,
@@ -417,7 +418,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     lineHeight: 20,
-    maxWidth: 330,
+    maxWidth: 320,
   },
   card: {
     backgroundColor: theme.colors.surface,
@@ -427,85 +428,42 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     ...theme.shadow.soft,
   },
-  link: {
-    color: theme.colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  linkStrong: {
-    color: theme.colors.primary2,
+  sectionLabel: {
+    color: theme.colors.faint,
+    fontSize: 12.5,
     fontWeight: "900",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.2,
   },
-  sectionTitle: {
+  choiceRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 16,
+  },
+  choiceCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface2,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: theme.colors.stroke,
+    padding: 14,
+  },
+  choiceCardActive: {
+    borderColor: theme.colors.primary,
+    backgroundColor: "rgba(59,130,246,0.08)",
+  },
+  choiceTitle: {
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: "900",
-    marginBottom: 12,
+    marginBottom: 4,
   },
-  roleGrid: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: theme.spacing.lg,
-  },
-  roleCard: {
-    flex: 1,
-    backgroundColor: theme.colors.surface2,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-    borderRadius: theme.radius.xl,
-    padding: 14,
-    position: "relative",
-  },
-  roleActive: {
-    backgroundColor: "rgba(59,130,246,0.10)",
-    borderColor: "rgba(59,130,246,0.35)",
-  },
-  roleIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.stroke,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-  roleIconActive: {
-    backgroundColor: theme.colors.primary,
-    borderColor: "transparent",
-  },
-  roleTitle: {
-    color: theme.colors.text,
-    fontSize: 15,
-    fontWeight: "900",
-  },
-  roleSub: {
+  choiceSub: {
     color: theme.colors.muted,
     fontSize: 12.5,
     fontWeight: "700",
-    marginTop: 6,
     lineHeight: 17,
-  },
-  check: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    backgroundColor: theme.colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  micro: {
-    marginTop: 14,
-    color: theme.colors.faint,
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 18,
   },
   footer: {
     marginTop: theme.spacing.lg,
