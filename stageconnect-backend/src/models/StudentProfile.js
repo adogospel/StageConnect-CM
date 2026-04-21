@@ -46,12 +46,22 @@ const studentProfileSchema = new mongoose.Schema(
       default: "",
     },
 
-    skills: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    skills: {
+      type: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      default: [],
+    },
+
+    summary: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 1000,
+    },
 
     // ✅ Étudiant
     university: {
@@ -113,5 +123,6 @@ studentProfileSchema.index({ candidateType: 1 });
 studentProfileSchema.index({ fieldOfStudy: 1 });
 studentProfileSchema.index({ activitySector: 1 });
 studentProfileSchema.index({ skills: 1 });
+studentProfileSchema.index({ phone: 1 });
 
 module.exports = mongoose.model("StudentProfile", studentProfileSchema);

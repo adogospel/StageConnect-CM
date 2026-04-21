@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const StudentProfile = require("../models/StudentProfile");
 const CompanyProfile = require("../models/CompanyProfile");
+const Skill = require("../models/Skill");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
@@ -18,6 +19,58 @@ const splitFullName = (fullName = "") => {
   const firstName = parts.shift() || "";
   const lastName = parts.join(" ") || "";
   return { firstName, lastName };
+};
+
+const normalizeSkillName = (value = "") => {
+  return String(value).trim().replace(/\s+/g, " ").toLowerCase();
+};
+
+const formatSkillName = (value = "") => {
+  return String(value)
+    .trim()
+    .replace(/\s+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const slugifySkill = (value = "") => {
+  return normalizeSkillName(value).replace(/\s+/g, "-");
+};
+
+const syncSkillsCatalog = async (skills = []) => {
+  const cleanedSkills = Array.from(
+    new Set(
+      (Array.isArray(skills) ? skills : [])
+        .map((item) => formatSkillName(item))
+        .filter(Boolean)
+    )
+  );
+
+  for (const skillName of cleanedSkills) {
+    const normalizedName = normalizeSkillName(skillName);
+    const slug = slugifySkill(skillName);
+
+    const existingSkill = await Skill.findOne({ normalizedName });
+
+    if (existingSkill) {
+      existingSkill.usageCount = (existingSkill.usageCount || 0) + 1;
+      if (!existingSkill.isActive) existingSkill.isActive = true;
+      if (existingSkill.name !== skillName) existingSkill.name = skillName;
+      await existingSkill.save();
+    } else {
+      await Skill.create({
+        name: skillName,
+        normalizedName,
+        slug,
+        usageCount: 1,
+        isActive: true,
+      });
+    }
+  }
+
+  return cleanedSkills;
 };
 
 // ===============================
@@ -110,6 +163,8 @@ exports.register = async (req, res) => {
       if (!resolvedFirstName) commonMissing.push("firstName");
       if (!resolvedLastName) commonMissing.push("lastName");
       if (!city) commonMissing.push("city");
+      if (!phone) commonMissing.push("phone");
+      if (!Array.isArray(skills) || !skills.length) commonMissing.push("skills");
 
       if (candidateType === "student") {
         if (!university) commonMissing.push("university");
@@ -147,6 +202,8 @@ exports.register = async (req, res) => {
 
     // ✅ Création auto du profil candidat
     if (role === "student") {
+      const finalSkills = await syncSkillsCatalog(skills);
+
       await StudentProfile.create({
         user: user._id,
         candidateType,
@@ -154,7 +211,7 @@ exports.register = async (req, res) => {
         lastName: String(resolvedLastName).trim(),
         city: String(city).trim(),
         phone: phone ? String(phone).trim() : "",
-        skills: Array.isArray(skills) ? skills : [],
+        skills: finalSkills,
         university:
           candidateType === "student" ? String(university).trim() : undefined,
         fieldOfStudy:
@@ -173,9 +230,7 @@ exports.register = async (req, res) => {
       });
     }
 
-    // ✅ Création optionnelle profil entreprise vide plus tard ?
-    // Ici on ne le crée pas automatiquement pour ne pas casser ton flow actuel.
-    // L'entreprise complètera son profil via l'écran dédié.
+    // ✅ L'entreprise complètera son profil via l'écran dédié
 
     return res.status(201).json({
       _id: user._id,

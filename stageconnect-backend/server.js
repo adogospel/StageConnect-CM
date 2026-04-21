@@ -10,7 +10,6 @@ const app = express();
 // 🔗 Connexion base de données
 connectDB();
 
-
 // 🔒 Middlewares globaux
 app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
@@ -24,6 +23,7 @@ const jobRoutes = require("./src/routes/jobRoutes");
 const applicationRoutes = require("./src/routes/applicationRoutes");
 const notificationRoutes = require("./src/routes/notificationRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
+const skillRoutes = require("./src/routes/skillRoutes"); // ✅ AJOUT
 
 app.use("/api/auth", authRoutes);
 app.use("/api/students", studentRoutes);
@@ -32,6 +32,7 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/skills", skillRoutes); // ✅ AJOUT
 app.use("/uploads", express.static("uploads"));
 
 // 🩺 Route test
@@ -61,6 +62,6 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, "0.0.0.0",() => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🔥 API on ${PORT}`);
 });
