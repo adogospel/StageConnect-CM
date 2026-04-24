@@ -186,11 +186,6 @@ export default function Login() {
                 style={styles.heroGlow}
               />
 
-              <View style={styles.topBadge}>
-                <Feather name="shield" size={14} color={theme.colors.primary} />
-                <Text style={styles.topBadgeText}>Connexion sécurisée</Text>
-              </View>
-
               <View style={styles.brandRow}>
                 <Animated.View
                   style={[
@@ -219,23 +214,6 @@ export default function Login() {
                 Connecte-toi pour retrouver ton espace, suivre tes candidatures
                 ou gérer tes opportunités de recrutement.
               </Text>
-
-              <View style={styles.quickInfoRow}>
-                <View style={styles.quickInfoCard}>
-                  <Feather name="zap" size={15} color={theme.colors.primary} />
-                  <Text style={styles.quickInfoText}>Rapide</Text>
-                </View>
-
-                <View style={styles.quickInfoCard}>
-                  <Feather name="lock" size={15} color={theme.colors.primary} />
-                  <Text style={styles.quickInfoText}>Sécurisé</Text>
-                </View>
-
-                <View style={styles.quickInfoCard}>
-                  <Feather name="smartphone" size={15} color={theme.colors.primary} />
-                  <Text style={styles.quickInfoText}>Mobile-first</Text>
-                </View>
-              </View>
             </View>
 
             <View style={styles.card}>
@@ -275,15 +253,6 @@ export default function Login() {
                   </Pressable>
                 }
               />
-
-              <View style={styles.helperRow}>
-                <View style={styles.helperChip}>
-                  <Feather name="info" size={13} color={theme.colors.primary} />
-                  <Text style={styles.helperChipText}>
-                    Admin, entreprise ou candidat
-                  </Text>
-                </View>
-              </View>
 
               <Button
                 title={loading ? "Connexion..." : "Se connecter"}

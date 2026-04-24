@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { getCurrentUser, getToken } from "../src/services/auth";
+import AppSplash from "../components/AppSplash";
 
 type AppRoute =
+  | "/onboarding"
   | "/(auth)/login"
   | "/(student-tabs)/jobs"
   | "/(company-tabs)/publications"
@@ -16,10 +19,15 @@ export default function Index() {
   useEffect(() => {
     (async () => {
       try {
+        await new Promise((resolve) => setTimeout(resolve, 4700));
+
+        const onboardingSeen = await AsyncStorage.getItem("sc_onboarding_seen");
         const token = await getToken();
         const user = await getCurrentUser();
 
-        if (!token || !user?.role) {
+        if (!onboardingSeen) {
+          setRedirectTo("/onboarding");
+        } else if (!token || !user?.role) {
           setRedirectTo("/(auth)/login");
         } else if (user.role === "admin") {
           setRedirectTo("/(admin-tabs)/dashboard");
@@ -28,7 +36,7 @@ export default function Index() {
         } else {
           setRedirectTo("/(student-tabs)/jobs");
         }
-      } catch (error) {
+      } catch {
         setRedirectTo("/(auth)/login");
       } finally {
         setLoading(false);
@@ -37,19 +45,8 @@ export default function Index() {
   }, []);
 
   if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#F6F8FC",
-        }}
-      >
-        <ActivityIndicator size="large" />
-      </View>
-    );
+    return <AppSplash />;
   }
 
-  return <Redirect href={redirectTo} />;
+  return <Redirect href={redirectTo as any} />;
 }
