@@ -1,4 +1,5 @@
 const express = require("express");
+
 const router = express.Router();
 
 const {
@@ -12,21 +13,43 @@ const {
 
 const { protect } = require("../middlewares/authMiddleware");
 const { restrictToRole } = require("../middlewares/roleMiddleware");
+
 const {
   requireVerifiedCompany,
 } = require("../middlewares/companyVerificationMiddleware");
 
-// public
+const {
+  uploadJobImage,
+} = require("../middlewares/uploadMiddleware");
+
+// ======================================================
+// ROUTES PUBLIQUES
+// ======================================================
+
 router.get("/", getAllJobs);
-router.get("/company/me", protect, restrictToRole("company"), getMyJobs);
+
+/*
+ * Cette route doit rester avant /:id.
+ */
+router.get(
+  "/company/me",
+  protect,
+  restrictToRole("company"),
+  getMyJobs
+);
+
 router.get("/:id", getJobById);
 
-// company only + verified
+// ======================================================
+// ENTREPRISE VÉRIFIÉE
+// ======================================================
+
 router.post(
   "/",
   protect,
   restrictToRole("company"),
   requireVerifiedCompany,
+  uploadJobImage.single("image"),
   createJob
 );
 
@@ -35,6 +58,7 @@ router.put(
   protect,
   restrictToRole("company"),
   requireVerifiedCompany,
+  uploadJobImage.single("image"),
   updateJob
 );
 

@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 import { theme } from "../../../constants/theme";
 import { getApplicationById } from "../../../src/services/applications";
 
-const API_BASE_URL = "http://192.168.100.238:5000"; // ⚠️ mets ici la même IP que ton apiClient
+const API_BASE_URL = "http://192.168.100.238:5000"; 
 
 function buildFileUrl(filePath?: string) {
   if (!filePath) return "";

@@ -14,39 +14,100 @@ type AppRoute =
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
-  const [redirectTo, setRedirectTo] = useState<AppRoute>("/(auth)/login");
+
+  const [redirectTo, setRedirectTo] = useState<AppRoute>(
+    "/(auth)/login"
+  );
 
   useEffect(() => {
-    (async () => {
+    const initializeApp = async () => {
       try {
-        await new Promise((resolve) => setTimeout(resolve, 4700));
+        /*
+         * On garde ton splash personnalisé actuel.
+         * Cette durée sera optimisée plus tard pendant
+         * le travail sur l'expérience de démarrage.
+         */
+        await new Promise((resolve) =>
+          setTimeout(resolve, 4700)
+        );
 
-        const onboardingSeen = await AsyncStorage.getItem("sc_onboarding_seen");
+        /*
+         * IMPORTANT :
+         * On ne supprime PLUS sc_token et sc_user ici.
+         * La session de l'utilisateur doit persister
+         * après la fermeture de l'application.
+         */
+
+        const onboardingSeen =
+          await AsyncStorage.getItem(
+            "sc_onboarding_seen"
+          );
+
         const token = await getToken();
         const user = await getCurrentUser();
 
+        /*
+         * 1. Première ouverture de l'application
+         */
         if (!onboardingSeen) {
           setRedirectTo("/onboarding");
-        } else if (!token || !user?.role) {
-          setRedirectTo("/(auth)/login");
-        } else if (user.role === "admin") {
-          setRedirectTo("/(admin-tabs)/dashboard");
-        } else if (user.role === "company") {
-          setRedirectTo("/(company-tabs)/publications");
-        } else {
-          setRedirectTo("/(student-tabs)/jobs");
+          return;
         }
-      } catch {
+
+        /*
+         * 2. Aucun utilisateur connecté
+         */
+        if (!token || !user?.role) {
+          setRedirectTo("/(auth)/login");
+          return;
+        }
+
+        /*
+         * 3. Administrateur
+         */
+        if (user.role === "admin") {
+          setRedirectTo(
+            "/(admin-tabs)/dashboard"
+          );
+          return;
+        }
+
+        /*
+         * 4. Entreprise
+         */
+        if (user.role === "company") {
+          setRedirectTo(
+            "/(company-tabs)/publications"
+          );
+          return;
+        }
+
+        /*
+         * 5. Candidat
+         */
+        setRedirectTo(
+          "/(student-tabs)/jobs"
+        );
+      } catch (error) {
+        console.error(
+          "APP INITIALIZATION ERROR:",
+          error
+        );
+
         setRedirectTo("/(auth)/login");
       } finally {
         setLoading(false);
       }
-    })();
+    };
+
+    initializeApp();
   }, []);
 
   if (loading) {
     return <AppSplash />;
   }
 
-  return <Redirect href={redirectTo as any} />;
+  return (
+    <Redirect href={redirectTo as any} />
+  );
 }

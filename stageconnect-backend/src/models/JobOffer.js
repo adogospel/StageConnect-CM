@@ -1,11 +1,20 @@
 const mongoose = require("mongoose");
 
+const CONTRACT_TYPES_WITH_DURATION = [
+  "CDD",
+  "Stage",
+  "Alternance",
+  "Freelance",
+  "Temps partiel",
+];
+
 const jobOfferSchema = new mongoose.Schema(
   {
     company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "CompanyProfile",
       required: true,
+      index: true,
     },
 
     title: {
@@ -48,7 +57,6 @@ const jobOfferSchema = new mongoose.Schema(
         "CDI",
         "Freelance",
         "Alternance",
-        "Temps plein",
         "Temps partiel",
       ],
       required: true,
@@ -60,20 +68,22 @@ const jobOfferSchema = new mongoose.Schema(
       default: "Présentiel",
     },
 
+    /*
+     * La durée reste optionnelle.
+     * Elle est automatiquement vidée pour CDI.
+     */
     duration: {
       type: String,
       trim: true,
-    },
-
-    experienceLevel: {
-      type: String,
-      enum: ["Junior", "Intermédiaire", "Senior", "Sans expérience"],
-      default: "Sans expérience",
+      default: "",
+      maxlength: 100,
     },
 
     salary: {
       type: String,
       trim: true,
+      default: "",
+      maxlength: 200,
     },
 
     isPaid: {
@@ -81,15 +91,66 @@ const jobOfferSchema = new mongoose.Schema(
       default: false,
     },
 
-    skills: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+    skills: {
+      type: [
+        {
+          type: String,
+          trim: true,
+        },
+      ],
+      default: [],
+    },
+
+    /*
+     * Champs optionnels :
+     * ils ne seront affichés côté candidat que lorsqu’ils sont renseignés.
+     */
+    requirements: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 3000,
+    },
+
+    benefits: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 3000,
+    },
+
+    /*
+     * Flyer optionnel de l’offre.
+     * Ces champs peuvent rester vides pour les anciennes offres.
+     */
+    imageUrl: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    imageOriginalName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    imageMimeType: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    imageSize: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 5 * 1024 * 1024,
+    },
 
     deadline: {
       type: Date,
+      default: null,
     },
 
     isPremium: {
@@ -104,6 +165,16 @@ const jobOfferSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+/*
+ * Sécurité métier :
+ * si le contrat ne nécessite pas de durée, on la retire.
+ */
+jobOfferSchema.pre("validate", function () {
+  if (!CONTRACT_TYPES_WITH_DURATION.includes(this.contractType)) {
+    this.duration = "";
+  }
+});
 
 jobOfferSchema.index({ city: 1 });
 jobOfferSchema.index({ domain: 1 });

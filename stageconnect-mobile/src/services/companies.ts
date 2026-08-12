@@ -1,5 +1,4 @@
 import { api } from "../lib/apiClient";
-
 export type CompanyProfilePayload = {
   companyName: string;
   sector: string;
@@ -14,7 +13,6 @@ export async function getMyCompanyProfile() {
   const { data } = await api.get("/api/companies/profile/me");
   return data; // profile
 }
-
 export async function createCompanyProfile(payload: CompanyProfilePayload) {
   const { data } = await api.post("/api/companies/profile", payload);
   return data; // created profile
